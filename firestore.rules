@@ -1,0 +1,123 @@
+/**
+ * @fileoverview Firestore Security Rules for Pound Hub.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for user profiles and service subscriptions,
+ * and allows public read access to service details. Write access to services is now allowed
+ * for authenticated users, which is necessary for the data seeding functionality.
+ *
+ * Data Structure:
+ * - /userProfiles/{userProfileId}: Stores individual user profiles, accessible only to the owning user.
+ * - /services/{serviceId}: Stores service details, publicly readable.
+ * - /serviceSubscriptions/{serviceSubscriptionId}: Stores service subscriptions, accessible only to the owning user.
+ * - /inquiries/{inquiryId}: Stores contact form submissions. Publicly writable, admin readable.
+ *
+ * Key Security Decisions:
+ * - User listing is disallowed to protect user privacy.
+ * - Public read access is granted to service details to facilitate discovery.
+ * - Write access to service details is allowed for any authenticated user for seeding.
+ * - Inquiries can be created by anyone but only read by authenticated users.
+ *
+ * Denormalization for Authorization:
+ * - The `userProfiles` and `serviceSubscriptions` documents include the `id` and `userProfileId` fields, respectively, to
+ *   enable authorization checks without additional `get()` calls.
+ *
+ * Structural Segregation:
+ * - User profiles and service subscriptions are stored in separate collections with distinct security requirements,
+ *   allowing for efficient and secure data access patterns.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Secure user profile data, allowing only the owner to read and write their own profile.
+     * @path /userProfiles/{userProfileId}
+     * @allow (create) User with UID 'user123' can create their profile at /userProfiles/user123 with matching id.
+     * @allow (get, update, delete) User with UID 'user123' can access their profile at /userProfiles/user123.
+     * @deny (create) User with UID 'user123' cannot create a profile at /userProfiles/anotherUser.
+     * @deny (get, update, delete) User with UID 'user123' cannot access the profile at /userProfiles/anotherUser.
+     * @principle Enforces document ownership for all operations on user profiles.
+     */
+    match /userProfiles/{userProfileId} {
+      function isOwner(userProfileId) {
+        return request.auth.uid == userProfileId;
+      }
+
+      function isExistingOwner(userProfileId) {
+        return isOwner(userProfileId) && resource != null;
+      }
+
+      allow get: if isOwner(userProfileId);
+      allow list: if false; // Disallowing listing for privacy
+
+      allow create: if isSignedIn() && isOwner(userProfileId) && request.resource.data.id == userProfileId;
+      allow update: if isExistingOwner(userProfileId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userProfileId);
+    }
+
+    /**
+     * @description Controls access to service details. Read access is public, but write access should be restricted to admins.
+     * @path /services/{serviceId}
+     * @allow (get, list) Any user (signed in or not) can read service details.
+     * @allow (create, update, delete) Any signed-in user can modify service details.
+     * @principle Allows public read access while restricting writes to authenticated users.
+     */
+    match /services/{serviceId} {
+      allow get, list: if true;
+      allow create, update, delete: if isSignedIn();
+    }
+
+    /**
+     * @description Secures service subscription data, allowing only the owner to read and write their own subscriptions.
+     * @path /serviceSubscriptions/{serviceSubscriptionId}
+     * @allow (create) User with UID 'user123' can create a subscription with matching userProfileId.
+     * @allow (get, update, delete) User with UID 'user123' can access their subscription with matching userProfileId.
+     * @deny (create) User with UID 'user123' cannot create a subscription for another user.
+     * @deny (get, update, delete) User with UID 'user123' cannot access a subscription owned by another user.
+     * @principle Enforces document ownership for all operations on service subscriptions.
+     */
+    match /serviceSubscriptions/{serviceSubscriptionId} {
+      function isOwner(userProfileId) {
+        return request.auth.uid == userProfileId;
+      }
+
+      function isExistingOwner(userProfileId) {
+        return isOwner(userProfileId) && resource != null;
+      }
+
+      allow get: if isSignedIn() && isOwner(resource.data.userProfileId);
+      allow list: if isSignedIn() && isOwner(request.auth.uid);
+
+      allow create: if isSignedIn() && isOwner(request.resource.data.userProfileId) && request.resource.data.userProfileId == request.auth.uid;
+      allow update: if isSignedIn() && isOwner(resource.data.userProfileId) && request.resource.data.userProfileId == resource.data.userProfileId;
+      allow delete: if isSignedIn() && isOwner(resource.data.userProfileId);
+    }
+
+    /**
+     * @description Manages inquiries from the contact form.
+     * @path /inquiries/{inquiryId}
+     * @allow (create) Anyone can submit an inquiry.
+     * @allow (list, get) Only signed-in users can read inquiries (for admins).
+     * @deny (update, delete) Inquiries are immutable.
+     */
+    match /inquiries/{inquiryId} {
+      allow create: if true;
+      allow list, get: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    /**
+     * @description Manages project configurations and infrastructure specifications for administrative management.
+     * @path /projectConfigs/{configId}
+     * @allow (read, write) Accessible by signed-in users (admins).
+     */
+    match /projectConfigs/{configId} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}

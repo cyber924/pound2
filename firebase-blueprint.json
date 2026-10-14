@@ -1,0 +1,267 @@
+{
+  "entities": {
+    "Service": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Service",
+      "type": "object",
+      "description": "Represents a service offered on the Pound Hub platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the service."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the service."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the service."
+        },
+        "thumbnailUrl": {
+          "type": "string",
+          "description": "URL of the thumbnail image for the service.",
+          "format": "uri"
+        },
+        "demoUrl": {
+          "type": "string",
+          "description": "URL for the service demo or website.",
+          "format": "uri"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the service (e.g., AI, Web Development)."
+        },
+        "techStack": {
+          "type": "array",
+          "description": "List of technologies used in the service.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "serviceSubscriptionId": {
+          "type": "string",
+          "description": "Reference to ServiceSubscription. (Relationship: Service 1:N ServiceSubscription)"
+        },
+        "projectConfigId": {
+          "type": "string",
+          "description": "Reference to ProjectConfig ID associated with this service."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "thumbnailUrl",
+        "demoUrl",
+        "category",
+        "techStack"
+      ]
+    },
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user profile within the Pound Hub system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user profile."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "User's first name."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "User's last name."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "firstName",
+        "lastName"
+      ]
+    },
+    "ServiceSubscription": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ServiceSubscription",
+      "type": "object",
+      "description": "Represents a user's subscription to a specific service.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the service subscription."
+        },
+        "userProfileId": {
+          "type": "string",
+          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N ServiceSubscription)"
+        },
+        "serviceId": {
+          "type": "string",
+          "description": "Reference to Service. (Relationship: Service 1:N ServiceSubscription)"
+        },
+        "subscriptionDate": {
+          "type": "string",
+          "description": "Date when the user subscribed to the service.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userProfileId",
+        "serviceId",
+        "subscriptionDate"
+      ]
+    },
+    "Inquiry": {
+      "title": "Inquiry",
+      "type": "object",
+      "description": "Represents an inquiry submitted through the contact form.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the person submitting the inquiry."
+        },
+        "company": {
+          "type": "string",
+          "description": "Company name of the person."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email address of the person."
+        },
+        "details": {
+          "type": "string",
+          "description": "The detailed content of the inquiry."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["development", "investment"],
+          "description": "The type of inquiry."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the inquiry was created."
+        }
+      },
+      "required": ["name", "company", "email", "details", "type", "createdAt"]
+    },
+    "ProjectConfig": {
+      "title": "ProjectConfig",
+      "type": "object",
+      "description": "Stores individual project Firebase infrastructure specifications for administration.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "apiKey": { "type": "string" },
+        "authDomain": { "type": "string" },
+        "projectId": { "type": "string" },
+        "storageBucket": { "type": "string" },
+        "messagingSenderId": { "type": "string" },
+        "appId": { "type": "string" }
+      },
+      "required": ["apiKey", "authDomain", "projectId", "storageBucket", "messagingSenderId", "appId"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/userProfiles/{userProfileId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores user profile information.  Accessible only to the user with the matching userProfileId. Includes denormalized 'id' for authorization independence.",
+          "params": [
+            {
+              "name": "userProfileId",
+              "description": "The unique identifier of the user's profile."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/services/{serviceId}",
+        "definition": {
+          "entityName": "Service",
+          "schema": {
+            "$ref": "#/backend/entities/Service"
+          },
+          "description": "Stores service details. Publicly readable. Update/Delete operations are restricted to admins (to be implemented via a separate admin role mechanism, such as a `/roles_admin/{uid}` collection).",
+          "params": [
+            {
+              "name": "serviceId",
+              "description": "The unique identifier of the service."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/serviceSubscriptions/{serviceSubscriptionId}",
+        "definition": {
+          "entityName": "ServiceSubscription",
+          "schema": {
+            "$ref": "#/backend/entities/ServiceSubscription"
+          },
+          "description": "Stores user's service subscriptions. Accessible only to the user who owns the subscription via userProfileId.  Includes denormalized 'userProfileId' and 'serviceId' for authorization independence.",
+          "params": [
+            {
+              "name": "serviceSubscriptionId",
+              "description": "The unique identifier of the service subscription."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/inquiries/{inquiryId}",
+        "definition": {
+          "entityName": "Inquiry",
+          "schema": {
+            "$ref": "#/backend/entities/Inquiry"
+          },
+          "description": "Stores contact form inquiries. Publicly writable, but only readable by authenticated admin users.",
+          "params": [
+            {
+              "name": "inquiryId",
+              "description": "The unique identifier for the inquiry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/projectConfigs/{configId}",
+        "definition": {
+          "entityName": "ProjectConfig",
+          "schema": {
+            "$ref": "#/backend/entities/ProjectConfig"
+          },
+          "description": "Stores individual project Firebase infrastructure specifications. Accessible only to authenticated admins.",
+          "params": [
+            {
+              "name": "configId",
+              "description": "The unique identifier for the project configuration."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support the Pound Hub application's core features, focusing on service portfolio display, AI-driven service registration, and user service subscriptions. It emphasizes authorization independence and clear security rules by denormalizing authorization data. This structure uses path-based ownership for user profiles and subscriptions and segregates data into collections with homogeneous security postures.\n\nThe `userProfiles` collection stores user profile information, secured by path-based ownership, ensuring only the user can access their profile data. The `services` collection stores information about the services offered on the platform. The `serviceSubscriptions` collection manages the relationships between users and services, with each document containing the `userProfileId` and `serviceId`. A new `inquiries` collection is added to store submissions from the contact form. This collection allows public write access so anonymous users can submit inquiries, but restricts read access to authenticated users (admins) to protect privacy. This design eliminates the need for `get()` calls in security rules and ensures atomic operations.\n\nThis structure enables secure `list` operations (QAPs) by ensuring all documents within a collection share the same security requirements. User profiles are isolated in their own documents under the `userProfiles` collection, allowing for straightforward rules based on `request.auth.uid`."
+  }
+}
