@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { DEFAULT_3P_CONFIGS } from '@/lib/default-configs';
 import {
   collection,
   doc,
@@ -60,18 +61,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
-// Pre-seeded default configuration requested by the user
-const INITIAL_DEFAULT_CONFIG: Omit<ProjectConfig, 'createdAt' | 'updatedAt'> = {
-  id: 'studio-8794506415-b7407',
-  name: '파운드 스튜디오 B7407 프로젝트',
-  description: '파운드 연계 서비스 및 확장 인프라 구성 명세',
-  apiKey: 'AIzaSyBsQtJ7H2TJVhQRK69crhFAU9EnMAo9zS4',
-  authDomain: 'studio-8794506415-b7407.firebaseapp.com',
-  projectId: 'studio-8794506415-b7407',
-  storageBucket: 'studio-8794506415-b7407.firebasestorage.app',
-  messagingSenderId: '340716150381',
-  appId: '1:340716150381:web:1b1234b6dd49eaba10e964',
-};
+
 
 export default function AdminSettingsPage() {
   const firestore = useFirestore();
@@ -81,7 +71,7 @@ export default function AdminSettingsPage() {
     () => (firestore ? collection(firestore, 'projectConfigs') : null),
     [firestore]
   );
-  const { data: configs, isLoading } = useCollection<ProjectConfig>(configsRef);
+
 
   // States
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
@@ -191,30 +181,36 @@ export default function AdminSettingsPage() {
   const handleSeedDefaultConfig = async () => {
     if (!firestore) return;
     try {
-      await setDoc(
-        doc(firestore, 'projectConfigs', INITIAL_DEFAULT_CONFIG.id),
-        {
-          ...INITIAL_DEFAULT_CONFIG,
-          updatedAt: serverTimestamp(),
-          createdAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      for (const cfg of DEFAULT_3P_CONFIGS) {
+        await setDoc(
+          doc(firestore, 'projectConfigs', cfg.id),
+          {
+            ...cfg,
+            updatedAt: serverTimestamp(),
+            createdAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
       toast({
-        title: '등록 완료',
-        description: '스튜디오 B7407 기본 프로젝트 설정이 성공적으로 등록되었습니다.',
+        title: '일괄 복원 완료',
+        description: '3개의 주요 프로젝트 환경설정이 성공적으로 복원 및 등록되었습니다.',
       });
     } catch (error) {
-      console.error('Error seeding default config:', error);
+      console.error('Error seeding default configs:', error);
       toast({
         title: '오류 발생',
-        description: '기본 설정 등록 중 오류가 발생했습니다.',
+        description: '기본 설정 복원 중 오류가 발생했습니다.',
         variant: 'destructive',
       });
     }
   };
 
-  const displayList = configs && configs.length > 0 ? configs : [];
+  const { data: configs, isLoading } = useCollection<ProjectConfig>(configsRef);
+  const displayList = useMemo(() => {
+    if (configs && configs.length > 0) return configs;
+    return DEFAULT_3P_CONFIGS;
+  }, [configs]);
 
   return (
     <div className="space-y-8">
@@ -267,13 +263,13 @@ export default function AdminSettingsPage() {
             </div>
             <CardTitle>등록된 프로젝트 환경설정이 없습니다</CardTitle>
             <CardDescription className="max-w-md mx-auto">
-              요청하신 <strong>스튜디오 B7407</strong> 중요 환경설정값으로 첫 프로젝트를 등록하거나 새 프로젝트를 추가하세요.
+              등록된 인프라 환경설정이 없습니다. 원클릭으로 <strong>주요 3개 프로젝트 설정(B7407, Main, Enterprise)</strong>을 일괄 복원하거나 새로 등록하세요.
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex justify-center gap-3 pt-2">
             <Button onClick={handleSeedDefaultConfig} className="gap-2">
               <KeyRound className="h-4 w-4" />
-              스튜디오 B7407 기본값 원클릭 등록
+              기본 3개 프로젝트 일괄 복원
             </Button>
             <Button variant="outline" onClick={handleOpenAddDialog}>
               직접 새 프로젝트 입력

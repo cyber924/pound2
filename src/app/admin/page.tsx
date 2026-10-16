@@ -22,6 +22,9 @@ import type { Service, Inquiry } from '@/types';
 import { Briefcase, MessageSquare, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useMemo } from 'react';
+import { DEFAULT_32_SERVICES } from '@/lib/default-services';
+import { DEFAULT_3P_CONFIGS } from '@/lib/default-configs';
 
 export default function AdminDashboard() {
   const firestore = useFirestore();
@@ -46,14 +49,29 @@ export default function AdminDashboard() {
     [firestore]
   );
 
-  const { data: recentServices, isLoading: isLoadingServices } =
+  const { data: rawRecentServices, isLoading: isLoadingServices } =
     useCollection<Service>(recentServicesQuery);
-  const { count: totalServices, isLoading: isLoadingServicesCount } = 
+  const { count: rawTotalServices, isLoading: isLoadingServicesCount } = 
     useCollectionCount(allServicesQuery);
   const { count: totalInquiries, isLoading: isLoadingInquiriesCount } = 
     useCollectionCount(allInquiriesQuery);
-  const { count: totalConfigs, isLoading: isLoadingConfigsCount } = 
+  const { count: rawTotalConfigs, isLoading: isLoadingConfigsCount } = 
     useCollectionCount(allConfigsQuery);
+
+  const totalServices = useMemo(() => {
+    if (rawTotalServices && rawTotalServices > 0) return rawTotalServices;
+    return DEFAULT_32_SERVICES.length;
+  }, [rawTotalServices]);
+
+  const totalConfigs = useMemo(() => {
+    if (rawTotalConfigs && rawTotalConfigs > 0) return rawTotalConfigs;
+    return DEFAULT_3P_CONFIGS.length;
+  }, [rawTotalConfigs]);
+
+  const recentServices = useMemo(() => {
+    if (rawRecentServices && rawRecentServices.length > 0) return rawRecentServices;
+    return DEFAULT_32_SERVICES.slice(0, 5) as Service[];
+  }, [rawRecentServices]);
 
   const isLoading =
     isLoadingServices || isLoadingServicesCount || isLoadingInquiriesCount;

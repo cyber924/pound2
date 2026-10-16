@@ -24,6 +24,7 @@ import type { Service } from '@/types';
 import { ServiceCard } from '@/components/service-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
+import { DEFAULT_32_SERVICES } from '@/lib/default-services';
 
 const AnimatedCounter = ({
   endValue,
@@ -88,7 +89,11 @@ export default function Home() {
     () => (firestore ? collection(firestore, 'services') : null),
     [firestore]
   );
-  const { data: services, isLoading } = useCollection<Service>(servicesRef);
+  const { data: rawServices, isLoading } = useCollection<Service>(servicesRef);
+  const services = useMemo(() => {
+    if (rawServices && rawServices.length > 0) return rawServices;
+    return DEFAULT_32_SERVICES as Service[];
+  }, [rawServices]);
 
   // Recommendation configuration
   const [recMode, setRecMode] = useState<'trending' | 'tech' | 'explore'>('trending');

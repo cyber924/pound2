@@ -28,6 +28,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Pencil, Settings, Server } from 'lucide-react';
 import Link from 'next/link';
+import { DEFAULT_32_SERVICES } from '@/lib/default-services';
+import { useMemo } from 'react';
 
 export default function EditServicePage() {
   const firestore = useFirestore();
@@ -37,7 +39,11 @@ export default function EditServicePage() {
     () => (firestore ? collection(firestore, 'services') : null),
     [firestore]
   );
-  const { data: services, isLoading } = useCollection<Service>(servicesRef);
+  const { data: rawServices, isLoading } = useCollection<Service>(servicesRef);
+  const services = useMemo(() => {
+    if (rawServices && rawServices.length > 0) return rawServices;
+    return DEFAULT_32_SERVICES as Service[];
+  }, [rawServices]);
 
   const configsRef = useMemoFirebase(
     () => (firestore ? collection(firestore, 'projectConfigs') : null),

@@ -30,6 +30,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 
 
+import { DEFAULT_32_SERVICES } from '@/lib/default-services';
+
 export default function ServicesPage() {
   const searchParams = useSearchParams();
   const search = searchParams.get('search') || '';
@@ -44,8 +46,13 @@ export default function ServicesPage() {
     () => (firestore ? collection(firestore, 'services') : null),
     [firestore]
   );
-  const { data: allServices, isLoading: isLoadingServices } =
+  const { data: rawServices, isLoading: isLoadingServices } =
     useCollection<Service>(servicesRef);
+
+  const allServices = useMemo(() => {
+    if (rawServices && rawServices.length > 0) return rawServices;
+    return DEFAULT_32_SERVICES as Service[];
+  }, [rawServices]);
 
   useEffect(() => {
     // If a search term is in the URL, try to find and open the corresponding service modal.
